@@ -17,5 +17,4 @@ class StrictTextModel(BaseModel):
 class SyllabusInput(StrictTextModel):
     subject: str = Field(min_length=1, max_length=200)
     level: str = Field(min_length=1, max_length=100)
-    language: str = Field(min_length=1, max_length=100)
     syllabus: str = Field(min_length=20, description="Raw syllabus module text")

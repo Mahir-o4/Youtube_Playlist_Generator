@@ -14,3 +14,10 @@ def test_prompt_carries_every_input(valid_input: dict[str, str]) -> None:
 
 def test_decomposition_prompt_loads_from_text_file() -> None:
     assert "curriculum designer" in load_prompt("decomposition")
+
+
+def test_transcript_scoring_prompt_loads_from_text_file() -> None:
+    prompt = load_prompt("transcript_scoring")
+    assert '"explained"' in prompt
+    assert '"absent"' in prompt
+    assert "valid JSON only" in prompt

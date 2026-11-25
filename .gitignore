@@ -17,3 +17,4 @@ data/cache/
 
 # Test artifacts
 .pytest_cache/
+.playwright-mcp/

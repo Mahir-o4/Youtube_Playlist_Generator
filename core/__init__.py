@@ -1,1 +1,1 @@
-"""Pure deterministic logic: validation, scoring, and language helpers."""
+"""Pure deterministic logic: validation, concurrency, scoring, and selection."""

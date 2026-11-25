@@ -13,7 +13,6 @@ APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 BREAKDOWN = {
     "subject": "Linear Algebra",
     "level": "Undergraduate",
-    "language": "English",
     "topics": [
         {
             "title": "Vectors",
@@ -49,4 +48,6 @@ def test_ui_renders_without_api_call(monkeypatch) -> None:
 
     assert not at.exception
     assert "1 topics · 1 searchable units" in [m.value for m in at.success]
+    no_evidence = [m.value for m in at.get("markdown") if "no transcript evidence" in m.value]
+    assert no_evidence
     assert [b.label for b in at.get("download_button")] == ["Download JSON"]

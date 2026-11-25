@@ -1,59 +1,48 @@
 # Implementation Plan
 
-> **Status:** M0 complete. See [ARCHITECTURE.md](ARCHITECTURE.md) for the current structure and invariants. Implement **one milestone at a time** and update this file's status after each.
+> **Status:** M0–M4 complete. See [ARCHITECTURE.md](ARCHITECTURE.md) for the current structure and invariants. Update this file when the pipeline changes.
 
 ## Current status
 
-- Implemented: M0 modular restructure (flat packages, `init_chat_model`, text prompts, graph nodes, Streamlit components) plus the original syllabus-decomposition feature. `uv run pytest -q` → 16 passed; live `init_chat_model` smoke call succeeds with `gemini-3.5-flash-lite`.
-- Not implemented: YouTube retrieval, transcripts, ranking, playlist selection, coverage report.
+- Implemented: the full syllabus → searchable units → YouTube candidates → 5 finalists per unit → transcript evaluation → selected playlist + coverage report pipeline.
+- No language input or weighting: English/Hindi are handled equally from the syllabus text; YouTube search sends no `relevanceLanguage`; region is unrestricted unless `YOUTUBE_REGION_CODE` is set.
+- Default model: `gemini-3.5-flash-lite` via `init_chat_model`.
+- `uv run pytest -q` → **25 passed**. Live end-to-end check produced a 4-item playlist with coverage statuses.
+- Cached YouTube/transcript responses and cached structured evaluations live in gitignored `data/cache/`.
+- Independent retrieval, transcript fetching, and transcript evaluation stages run in bounded threads via `core/concurrency.map_parallel`; worker counts are tunable through `YOUTUBE_WORKERS`, `TRANSCRIPT_WORKERS`, and `EVALUATION_WORKERS`.
 
 ## Milestones
 
 ### M0 — modular restructure + `init_chat_model` ✅ done
 
-1. Create the folder tree in [ARCHITECTURE.md](ARCHITECTURE.md#target-layout); move current code; delete `src/`.
-2. Add `langchain` with `uv add langchain`; replace direct `ChatGoogleGenerativeAI` construction with `init_model()` → `init_chat_model(f"google_genai:{model}")` in `services/llm.py`.
-3. Split schemas, prompt text, workflow nodes, and UI components; configure `[tool.uv.build-backend]` as documented.
-4. Update `README.md`, `AGENTS.md`, `.env.example`; add `data/cache/` to `.gitignore`.
-5. Verify: relocated tests pass (`uv run pytest -q`) + one live decomposition smoke call.
+Flat packages at repo root, `src/` removed, text prompts, graph nodes, Streamlit components, `uv_build` configured for top-level modules.
 
-### M1 — YouTube retrieval and top-20 → top-5 shortlist
+### M1 — YouTube retrieval and top-20 → top-5 shortlist ✅ done
 
-1. Add `httpx` as a direct dependency; build `services/youtube.py` with `search.list` + batched `videos.list`.
-2. For each learning unit: fetch up to 20 videos, collect views/likes/comments, cache responses.
-3. Add `core/scoring.py`: log-scale → min-max normalize within the pool → `0.40 views + 0.35 likes + 0.25 comments`; keep top 5.
-4. Add `VideoCandidate` schema, retrieval + ranking nodes, and offline tests with fixture stats.
-5. `YOUTUBE_API_KEY` is now present in `.env`; use it for the M1 live smoke test.
-6. Confirm the assumption that 20/5 are **per learning unit** before starting.
+- `services/youtube.py`: `search.list` + batched `videos.list`, disk-cached; `YOUTUBE_API_KEY` from `.env`.
+- 20 candidates per **learning unit** (assumption used), scored by `core/scoring.py`: log-scale + min-max normalize views/likes/comments within the pool, weights `0.40 / 0.35 / 0.25`.
+- Top 5 per unit become `finalists`; shown in the UI with popularity scores.
 
-### M2 — transcripts for the 5 finalists
+### M2 — transcripts for the 5 finalists ✅ done
 
-1. `uv add youtube-transcript-api`; build `services/transcripts.py` with language preference from the syllabus input.
-2. Store timestamped segments; handle missing transcripts without failing the run.
-3. Add `TranscriptSegment` schema and the `transcript_fetch` node; test with a fake fetcher only.
+- `services/transcripts.py` wraps `youtube-transcript-api` with `languages=["en", "hi"]` treated equally and disk caching.
+- Missing transcripts become `None` and do not fail the run.
 
-### M3 — LLM scoring of those 5 transcripts
+### M3 — LLM scoring of those 5 transcripts ✅ done
 
-1. User-supplied rubric is refined and saved as `prompts/transcript_scoring.txt`; do not invent replacement criteria.
-2. Define `VideoEvaluation` structured-output schema matching the prompt: per-item coverage/evidence/example/garbled/span/label plus segment-level level/relevance/fluff/format/quality/prereqs/possible_error.
-3. Add `transcript_evaluation` node using `structured_model(VideoEvaluation)` over transcript windows for the 5 M1 finalists.
-4. Aggregate segment results into a per-video decision deterministically. Confirm the aggregation rule before implementing final selection.
-5. This structured output — not the 20-candidate popularity score — is the ground for the final choice among the 5 videos.
+- User-supplied rubric refined into `prompts/transcript_scoring.txt`.
+- `schemas/evaluation.py` defines `SegmentEvaluation` with per-item coverage/evidence/example/garbled/span/label and segment-level fields.
+- `graph/nodes/transcript_evaluation.py` chunks transcripts into ~700-word windows, formats them as `[mm:ss] text`, and calls `structured_model(SegmentEvaluation)`.
+- `core/selection.py` aggregates segment results deterministically: best label per item, coverage ratio, penalties for noisy/unusable quality, off-topic relevance, sponsor/channel fluff, garbled text, and possible errors.
 
-### M4 — playlist sequencing, coverage report, export
+### M4 — playlist sequencing, coverage report, export ✅ done
 
-1. Greedy checklist coverage in breakdown order → `PlaylistItem(video, start_timestamp, covered_checklist)`.
-2. `prompts/coverage.txt` + coverage schema: covered / partial / missing with evidence.
-3. Render playlist, jump-to timestamps, coverage matrix, JSON/CSV export in `components/results.py`.
+- `graph/nodes/playlist_selection.py` picks the best finalist per unit using the M3 decision score (popularity only as tie-break), records the earliest explained timestamp, and builds a coverage report with `covered` / `partial` / `missing`.
+- `components/results.py` renders the playlist, jump-to timestamps, coverage matrix, finalists, JSON download, and playlist CSV download.
 
 ## Verification checklist
 
-- `uv run pytest -q` after every milestone; offline fakes only.
+- `uv run pytest -q` after every change; offline fakes only.
 - Manual `uv run streamlit run app.py` smoke check with real keys.
 - Live API smoke calls are manual, never part of the test suite.
-
-## Open items
-
-- User-supplied transcript scoring prompt (needed at M3).
-- `YOUTUBE_API_KEY` is already in `.env` for M1 live verification.
-- Confirm per-unit vs whole-syllabus interpretation of 20 candidates / 5 finalists.
+- `YOUTUBE_FINALISTS=1` is useful for a cheap end-to-end live check.

@@ -9,13 +9,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 
+from core.cache import cache_key, read_json, write_json
 from prompts import build_decomposition_messages
 from schemas import SyllabusBreakdown, SyllabusInput
 
 Decomposer = Callable[[SyllabusInput], SyllabusBreakdown]
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
-_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+_ROOT = Path(__file__).resolve().parents[1]
+_ENV_PATH = _ROOT / ".env"
+_EVAL_CACHE_DIR = _ROOT / "data" / "cache"
 
 
 def load_environment() -> None:
@@ -41,6 +45,22 @@ def structured_model(schema: type, model: str | None = None):
     return init_model(model).with_structured_output(schema, method="json_schema")
 
 
+def cached_structured_invoke(
+    model, messages: list[BaseMessage], schema: type
+):
+    """Invoke a structured model, caching results by prompt content."""
+    key = cache_key(
+        [schema.__name__, [getattr(m, "content", "") for m in messages]]
+    )
+    path = _EVAL_CACHE_DIR / f"structured_{key}.json"
+    cached = read_json(path)
+    if cached is not None:
+        return schema.model_validate(cached)
+    result = model.invoke(messages)
+    write_json(path, result.model_dump())
+    return result
+
+
 def make_decomposer(model: str | None = None) -> Decomposer:
     """Build the syllabus decomposer. Requires a Gemini API key."""
     load_environment()
@@ -52,7 +72,8 @@ def make_decomposer(model: str | None = None) -> Decomposer:
     structured = structured_model(SyllabusBreakdown, model=model)
 
     def decomposer(data: SyllabusInput) -> SyllabusBreakdown:
-        result = structured.invoke(build_decomposition_messages(data))
-        return SyllabusBreakdown.model_validate(result)
+        return cached_structured_invoke(
+            structured, build_decomposition_messages(data), SyllabusBreakdown
+        )
 
     return decomposer

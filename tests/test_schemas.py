@@ -11,7 +11,6 @@ def test_syllabus_input_strips_whitespace() -> None:
         {
             "subject": "  Math  ",
             "level": "  BSc ",
-            "language": " English ",
             "syllabus": "  Week 1: sets and proofs.  ",
         }
     )

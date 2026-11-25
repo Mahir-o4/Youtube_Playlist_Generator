@@ -12,7 +12,6 @@ def input_validation(state: WorkflowState) -> dict:
             {
                 "subject": state["subject"],
                 "level": state["level"],
-                "language": state["language"],
                 "syllabus": state["syllabus"],
             }
         )

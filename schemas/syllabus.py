@@ -17,7 +17,7 @@ class LearningUnit(StrictTextModel):
     checklist: list[ChecklistItem] = Field(min_length=1)
     search_query: str = Field(
         min_length=3,
-        description="YouTube search query in the requested language",
+        description="YouTube search query in the syllabus language",
     )
 
 
@@ -30,7 +30,6 @@ class Topic(StrictTextModel):
 class SyllabusBreakdown(StrictTextModel):
     subject: str = Field(min_length=1)
     level: str = Field(min_length=1)
-    language: str = Field(min_length=1)
     topics: list[Topic] = Field(min_length=1)
 
     @model_validator(mode="after")

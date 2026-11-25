@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from components.input_form import render_input_form
-from components.results import render_breakdown, render_download
+from components.results import render_breakdown, render_downloads
 from graph.workflow import build_workflow
 from schemas import SyllabusBreakdown
 from services.llm import DEFAULT_MODEL, has_api_key
@@ -45,10 +45,22 @@ if submitted:
         if result.get("error"):
             st.error(result["error"])
             st.session_state.pop("breakdown", None)
+            st.session_state.pop("finalists", None)
+            st.session_state.pop("playlist", None)
+            st.session_state.pop("coverage", None)
         else:
             st.session_state["breakdown"] = result["breakdown"]
+            st.session_state["finalists"] = result.get("finalists", {})
+            st.session_state["playlist"] = result.get("playlist", [])
+            st.session_state["coverage"] = result.get("coverage")
 
 breakdown = st.session_state.get("breakdown")
 if isinstance(breakdown, SyllabusBreakdown):
-    render_breakdown(breakdown)
-    render_download(breakdown)
+    playlist = st.session_state.get("playlist", [])
+    render_breakdown(
+        breakdown,
+        finalists=st.session_state.get("finalists", {}),
+        playlist=playlist,
+        coverage=st.session_state.get("coverage"),
+    )
+    render_downloads(breakdown, playlist)

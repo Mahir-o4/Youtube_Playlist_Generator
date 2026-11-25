@@ -14,7 +14,6 @@ def validate_input(values: Mapping[str, Any]) -> SyllabusInput:
         {
             "subject": values["subject"],
             "level": values["level"],
-            "language": values["language"],
             "syllabus": values["syllabus"],
         }
     )

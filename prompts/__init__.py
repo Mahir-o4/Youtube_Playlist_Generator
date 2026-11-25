@@ -21,7 +21,6 @@ def build_decomposition_messages(data: SyllabusInput) -> list[BaseMessage]:
     human = f"""\
 Subject: {data.subject}
 Academic level: {data.level}
-Preferred language: {data.language}
 
 Syllabus module:
 ---
