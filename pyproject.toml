@@ -1,0 +1,33 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Mahir", email = "skmahirashef04@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "langchain>=1.5.2",
+    "langchain-google-genai>=4.5.2",
+    "langgraph>=1.2.24",
+    "pydantic>=2.14.4",
+    "python-dotenv>=1.2.4",
+    "streamlit>=1.67.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["graph", "schemas", "services", "core", "prompts", "components"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
